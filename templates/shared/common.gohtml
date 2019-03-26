@@ -1,0 +1,42 @@
+{{define "header"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>{{.title}}</title>
+  <style>
+    label {
+      display: inline-block;
+      width: 120px;
+      vertical-align: top;
+    }
+
+    form div + div {
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+{{end}}
+
+{{define "footer"}}
+</body>
+</html>
+{{end}}
+
+{{define "errors"}}
+  {{if .errors}}
+    <div>
+      {{range $field, $errs := .errors}}
+        <label for="{{$field}}">{{$field}}</label>
+        <ul>
+          {{range $err := $errs}}
+            <li>{{$err}}</li>
+          {{end}}
+        </ul>
+      {{end}}
+    </div>
+  {{end}}
+{{end}}

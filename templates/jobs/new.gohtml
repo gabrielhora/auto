@@ -1,0 +1,42 @@
+{{define "jobs/new"}}
+  {{template "header" $}}
+
+  {{template "errors" $}}
+
+  <form action="" method="post">
+    <div>
+      <label for="Name">Name:</label>
+      <input type="text" name="Name" id="Name" value="{{.form.Name}}" required>
+    </div>
+    <div>
+      <label for="Description">Description:</label>
+      <textarea name="Description" id="Description" cols="30" rows="3">{{.form.Description}}</textarea>
+    </div>
+    <div>
+      <label for="Shell">Shell:</label>
+      <select name="Shell" id="Shell" required>
+        <option value="">---</option>
+        <option value="/bin/sh">/bin/sh</option>
+        <option value="/bin/bash">/bin/bash</option>
+      </select>
+    </div>
+    <div>
+      <label for="Script">Script:</label>
+      <textarea name="Script" id="Script" cols="50" rows="15" required>{{.form.Script}}</textarea>
+    </div>
+    <div>
+      <label for="Servers">Server:</label>
+      <select name="Servers" id="Servers" multiple="multiple" required>
+        <option value="-1" selected>Any</option>
+        <option value="1">server1</option>
+        <option value="2">server2</option>
+        <option value="3">server3</option>
+      </select>
+    </div>
+    <div>
+      <button type="submit">Create new Job</button>
+    </div>
+  </form>
+
+  {{template "footer" $}}
+{{end}}
