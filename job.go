@@ -19,22 +19,73 @@ type Job struct {
 	Cron *string
 
 	// True if this job can run in any server
-	RunnableAny bool `gorm:"not null"`
+	AnyServer bool `gorm:"not null"`
+}
 
-	// Array of server IDs where this Job can run,
-	// if RunnableAny is true, this array is not checked
-	RunnableIn pq.Int64Array `gorm:"type:bigint[];not null"`
+// JobServer specifies in what Servers a Job can run
+type JobServer struct {
+	ID int64 `gorm:"type:bigserial;primary_key"`
+
+	Job   Job
+	JobID int64 `gorm:"not null;index;type:bigint references job(id)"`
+
+	Server   Server
+	ServerID int64 `gorm:"not null;index;type:bigint references server(id)"`
+}
+
+type JobHistory struct {
+	ID        int64 `gorm:"type:bigserial;primary_key"`
+	CreatedAt time.Time
+
+	Job   Job
+	JobID int64 `gorm:"not null;index;type:bigint references job(id)"`
+
+	// In which server this job was executed
+	Server   Server
+	ServerID int64 `gorm:"not null;index"`
+
+	StartDate time.Time `gorm:"not null"`
+	EndDate   pq.NullTime
+
+	// True if script exit code is 0
+	Success bool
+
+	// Shell output log
+	Log string `gorm:"type:text"`
 }
 
 func jobCreate(db *gorm.DB, f *jobForm) (*Job, error) {
-	newJob := &Job{
+	tx := db.Begin()
+
+	job := &Job{
 		Name:        f.Name,
 		Description: &f.Description,
 		Shell:       f.Shell,
 		Script:      f.Script,
-		RunnableAny: f.AnyServer,
-		RunnableIn:  f.Servers,
+		AnyServer:   f.AnyServer,
 	}
-	err := db.Create(newJob).Error
-	return newJob, err
+
+	var err error
+	if err = tx.Create(job).Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	for _, id := range f.Servers {
+		if err = jobAssignToServer(tx, id, job.ID); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+	}
+
+	tx.Commit()
+	return job, err
+}
+
+func jobAssignToServer(db *gorm.DB, serverID, jobID int64) error {
+	js := &JobServer{JobID: jobID, ServerID: serverID}
+	if err := db.Create(js).Error; err != nil {
+		return err
+	}
+	return nil
 }
