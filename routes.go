@@ -1,10 +1,12 @@
 package main
 
 import (
+	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 func jobListHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
@@ -20,6 +22,34 @@ func jobListHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 			"jobs":  jobs,
 		}
 		tpl.ExecuteTemplate(w, "jobs/list", data)
+	}
+}
+
+func jobShowHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		params := mux.Vars(r)
+		id, _ := strconv.ParseInt(params["id"], 10, 64)
+		job, err := jobGet(db, id)
+
+		if err != nil {
+			log.Printf("error getting job with id %d: %v", id, err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		servers, err := jobGetServers(db, job.ID)
+		if err != nil {
+			log.Printf("error getting job with id %d: %v", id, err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		data := map[string]interface{}{
+			"title":   job.Name,
+			"job":     job,
+			"servers": servers,
+		}
+		tpl.ExecuteTemplate(w, "jobs/show", data)
 	}
 }
 

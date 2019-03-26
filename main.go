@@ -25,6 +25,7 @@ func main() {
 	router.StrictSlash(true)
 
 	router.HandleFunc("/jobs/", jobListHandler(db, tpl)).Methods("GET")
+	router.HandleFunc("/jobs/{id:[0-9]+}/", jobShowHandler(db, tpl)).Methods("GET")
 	router.HandleFunc("/jobs/new/", jobCreateHandler(db, tpl)).Methods("GET", "POST")
 
 	hs := &http.Server{

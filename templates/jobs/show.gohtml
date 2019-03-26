@@ -1,0 +1,28 @@
+{{define "jobs/show"}}
+  {{template "header" $}}
+
+  <h1>{{.job.Name}}</h1>
+
+  <dl>
+    <dt>Description</dt>
+    <dd>{{.job.Description}}</dd>
+    <dt>Shell</dt>
+    <dd>{{.job.Shell}}</dd>
+    <dt>Script</dt>
+    <dd><pre>{{.job.Script}}</pre></dd>
+    <dt>Run on</dt>
+    <dd>
+      {{if .job.AnyServer}}
+        Any server
+      {{else}}
+        <ul>
+          {{range $s := .servers}}
+            <li><a href="/servers/{{$s.ID}}/">{{$s.Hostname}}</a></li>
+          {{end}}
+        </ul>
+      {{end}}
+    </dd>
+  </dl>
+
+  {{template "footer" $}}
+{{end}}

@@ -95,3 +95,23 @@ func jobList(db *gorm.DB) ([]Job, error) {
 	err := db.Order("name").Find(&jobs).Error
 	return jobs, err
 }
+
+func jobGet(db *gorm.DB, jobID int64) (*Job, error) {
+	var job Job
+	err := db.First(&job, "id = ?", jobID).Error
+	if gorm.IsRecordNotFoundError(err) {
+		return nil, nil
+	}
+	return &job, err
+}
+
+func jobGetServers(db *gorm.DB, jobID int64) ([]Server, error) {
+	var servers []Server
+	err := db.
+		Select(`"server".*`).
+		Joins(`inner join "job_server" on "job_server"."server_id" = "server"."id"`).
+		Where(`"job_server"."job_id" = ?`, jobID).
+		Find(&servers).
+		Error
+	return servers, err
+}

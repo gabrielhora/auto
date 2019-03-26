@@ -1,7 +1,9 @@
 {{define "jobs/list"}}
   {{template "header" $}}
 
-  <h3>Jobs</h3>
+  <h1>Jobs</h1>
+
+  <a href="/jobs/new">Create new job</a>
 
   <ul>
     {{range $job := .jobs}}
