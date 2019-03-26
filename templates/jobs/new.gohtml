@@ -27,10 +27,10 @@
     <div>
       <label for="Servers">Server:</label>
       <select name="Servers" id="Servers" multiple="multiple" required>
-        <option value="-1" selected>Any</option>
-        <option value="1">server1</option>
-        <option value="2">server2</option>
-        <option value="3">server3</option>
+        <option value="-1" {{if .form.AnyServer}}selected{{end}}>Any</option>
+        {{range $s := .servers}}
+          <option value="{{$s.ID}}">{{$s.Hostname}}</option>
+        {{end}}
       </select>
     </div>
     <div>

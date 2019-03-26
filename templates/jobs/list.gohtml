@@ -1,0 +1,13 @@
+{{define "jobs/list"}}
+  {{template "header" $}}
+
+  <h3>Jobs</h3>
+
+  <ul>
+    {{range $job := .jobs}}
+      <li><a href="/jobs/{{$job.ID}}/">{{$job.Name}}</a></li>
+    {{end}}
+  </ul>
+
+  {{template "footer" $}}
+{{end}}

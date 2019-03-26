@@ -23,6 +23,8 @@ func main() {
 
 	router := mux.NewRouter()
 	router.StrictSlash(true)
+
+	router.HandleFunc("/jobs/", jobListHandler(db, tpl)).Methods("GET")
 	router.HandleFunc("/jobs/new/", jobCreateHandler(db, tpl)).Methods("GET", "POST")
 
 	hs := &http.Server{

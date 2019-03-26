@@ -89,3 +89,9 @@ func jobAssignToServer(db *gorm.DB, serverID, jobID int64) error {
 	}
 	return nil
 }
+
+func jobList(db *gorm.DB) ([]Job, error) {
+	var jobs []Job
+	err := db.Order("name").Find(&jobs).Error
+	return jobs, err
+}
