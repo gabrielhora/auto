@@ -54,6 +54,13 @@ type JobHistory struct {
 	Log string `gorm:"type:text"`
 }
 
+func (h JobHistory) Duration() string {
+	if !h.EndDate.Valid {
+		return ""
+	}
+	return h.EndDate.Time.Sub(h.StartDate).String()
+}
+
 func jobCreate(db *gorm.DB, f *jobForm) (*Job, error) {
 	tx := db.Begin()
 
@@ -72,7 +79,7 @@ func jobCreate(db *gorm.DB, f *jobForm) (*Job, error) {
 	}
 
 	for _, id := range f.Servers {
-		if err = jobAssignToServer(tx, id, job.ID); err != nil {
+		if err = jobAssignToServer(tx, job.ID, id); err != nil {
 			tx.Rollback()
 			return nil, err
 		}
@@ -82,12 +89,9 @@ func jobCreate(db *gorm.DB, f *jobForm) (*Job, error) {
 	return job, err
 }
 
-func jobAssignToServer(db *gorm.DB, serverID, jobID int64) error {
+func jobAssignToServer(db *gorm.DB, jobID, serverID int64) error {
 	js := &JobServer{JobID: jobID, ServerID: serverID}
-	if err := db.Create(js).Error; err != nil {
-		return err
-	}
-	return nil
+	return db.Create(js).Error
 }
 
 func jobList(db *gorm.DB) ([]Job, error) {
@@ -105,7 +109,7 @@ func jobGet(db *gorm.DB, jobID int64) (*Job, error) {
 	return &job, err
 }
 
-func jobGetServers(db *gorm.DB, jobID int64) ([]Server, error) {
+func jobServers(db *gorm.DB, jobID int64) ([]Server, error) {
 	var servers []Server
 	err := db.
 		Select(`"server".*`).
@@ -114,4 +118,14 @@ func jobGetServers(db *gorm.DB, jobID int64) ([]Server, error) {
 		Find(&servers).
 		Error
 	return servers, err
+}
+
+func jobHistory(db *gorm.DB, jobID int64) ([]JobHistory, error) {
+	var history []JobHistory
+	err := db.
+		Where("job_id = ?", jobID).
+		Preload("Server").
+		Find(&history).
+		Error
+	return history, err
 }

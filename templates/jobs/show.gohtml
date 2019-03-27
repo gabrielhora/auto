@@ -6,22 +6,41 @@
   <dl>
     <dt>Description</dt>
     <dd>{{.job.Description}}</dd>
+
     <dt>Shell</dt>
     <dd>{{.job.Shell}}</dd>
+
     <dt>Script</dt>
     <dd><pre>{{.job.Script}}</pre></dd>
+
     <dt>Run on</dt>
-    <dd>
-      {{if .job.AnyServer}}
-        Any server
-      {{else}}
-        <ul>
-          {{range $s := .servers}}
-            <li><a href="/servers/{{$s.ID}}/">{{$s.Hostname}}</a></li>
-          {{end}}
-        </ul>
+    {{if .job.AnyServer}}
+      <dd>Any server</dd>
+    {{else}}
+      {{range $s := .servers}}
+        <dd><a href="/servers/{{$s.ID}}/">{{$s.Hostname}}</a></dd>
       {{end}}
-    </dd>
+    {{end}}
+
+    <dt>History</dt>
+    {{range $h := .history}}
+      <dd>
+        <a href="#">
+          {{if not $h.EndDate.Valid}}
+            RUNNING on {{$h.Server.Hostname}}
+          {{else}}
+            {{if $h.Success}}
+              SUCCESS
+            {{else}}
+              FAILED
+            {{end}}
+            on {{$h.Server.Hostname}}
+            at {{$h.StartDate.Format "Jan 02, 2006 3:04 PM"}}
+          {{end}}
+        </a>
+      </dd>
+    {{end}}
+
   </dl>
 
   {{template "footer" $}}

@@ -37,9 +37,16 @@ func jobShowHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 			return
 		}
 
-		servers, err := jobGetServers(db, job.ID)
+		servers, err := jobServers(db, job.ID)
 		if err != nil {
-			log.Printf("error getting job with id %d: %v", id, err)
+			log.Printf("error getting job servers: %v", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		history, err := jobHistory(db, job.ID)
+		if err != nil {
+			log.Printf("error getting job history: %v", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
@@ -48,6 +55,7 @@ func jobShowHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 			"title":   job.Name,
 			"job":     job,
 			"servers": servers,
+			"history": history,
 		}
 		tpl.ExecuteTemplate(w, "jobs/show", data)
 	}
