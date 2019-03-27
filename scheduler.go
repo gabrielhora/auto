@@ -10,7 +10,7 @@ import (
 )
 
 func schedulerRun(db *gorm.DB) error {
-	sleep := _randDurationBetween(1, 2, time.Second)
+	sleep := _randDurationBetween(10, 60, time.Second)
 	hostname, err := os.Hostname()
 	if err != nil {
 		return err
@@ -27,14 +27,6 @@ func schedulerRun(db *gorm.DB) error {
 
 	go func() {
 		for {
-			// todo:
-			//   - start a db transaction
-			//   - get pending jobs
-			//   - schedule next execution for each pending job
-			//   - commit transaction if no errors
-			//   - start a go routine for each pending job
-			//   - sleep for some time
-
 			time.Sleep(sleep)
 			log.Printf(`Running scheduler for "%s"...`, server.Hostname)
 

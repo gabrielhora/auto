@@ -28,7 +28,7 @@ func queuePending(db *gorm.DB, serverID int64) ([]Job, error) {
 
 	// get all pending items
 	var pending []Queue
-	err = db.Where("date <= ?", time.Now().UTC()).Preload("Job").Find(&pending).Error
+	err = tx.Where("date <= ?", time.Now().UTC()).Preload("Job").Find(&pending).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -56,7 +56,7 @@ func queuePending(db *gorm.DB, serverID int64) ([]Job, error) {
 	}
 
 	if len(idsToDelete) > 0 {
-		if err = db.Where("id in (?)", &idsToDelete).Delete(Queue{}).Error; err != nil {
+		if err = tx.Where(idsToDelete).Delete(Queue{}).Error; err != nil {
 			tx.Rollback()
 			return nil, err
 		}
@@ -86,8 +86,6 @@ func queueScheduleNext(db *gorm.DB, job Job) error {
 		log.Printf(`error parsing cron expression "%s" for job "%s"`, *job.Cron, job.Name)
 		return err
 	}
-
-	// todo: make sure this job is not already scheduled
 
 	nextTime := s.Next(time.Now().UTC()).UTC()
 	item := Queue{
