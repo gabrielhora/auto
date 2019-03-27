@@ -94,6 +94,23 @@ func jobAssignToServer(db *gorm.DB, jobID, serverID int64) error {
 	return db.Create(js).Error
 }
 
+func jobIsAssignedToServer(db *gorm.DB, job *Job, serverID int64) (bool, error) {
+	if job.AnyServer {
+		return true, nil
+	}
+
+	var js JobServer
+	err := db.Where("job_id = ? AND server_id = ?", job.ID, serverID).First(&js).Error
+	if gorm.IsRecordNotFoundError(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 func jobList(db *gorm.DB) ([]Job, error) {
 	var jobs []Job
 	err := db.Order("name").Find(&jobs).Error

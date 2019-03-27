@@ -35,6 +35,10 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 	}
 
+	if err = schedulerRun(db); err != nil {
+		log.Fatalf("could not start scheduler: %v", err)
+	}
+
 	log.Printf("server running on %s", hs.Addr)
 	log.Fatal(hs.ListenAndServe())
 }
