@@ -15,62 +15,61 @@ type Queue struct {
 	Date      time.Time `gorm:"not null;index"`
 }
 
-func queuePending(db *gorm.DB, serverID int64) ([]Job, error) {
+func queuePendingJobs(db *gorm.DB, serverID int64) ([]Job, error) {
 	tx := db.Begin()
+
+	var err error
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
 
 	// lock the table so only this routine can access it, rollbacks or
 	// commits will release this lock, will also timeout in 5 seconds
-	err := tx.Exec(`SET statement_timeout = 5000; LOCK TABLE "queue" IN EXCLUSIVE MODE`).Error
-	if err != nil {
-		tx.Rollback()
+	if err = tx.Exec(`SET statement_timeout = 5000; LOCK TABLE "queue" IN EXCLUSIVE MODE`).Error; err != nil {
 		return nil, err
 	}
 
-	// get all pending items
+	// get all pending jobs
 	var pending []Queue
-	err = tx.Where("date <= ?", time.Now().UTC()).Preload("Job").Find(&pending).Error
-	if err != nil {
-		tx.Rollback()
+	if err = tx.Where("date <= ?", time.Now().UTC()).Preload("Job").Find(&pending).Error; err != nil {
 		return nil, err
 	}
 
-	// get pending items that can run in this server
-	var toBeProcessed []Queue
-	for _, item := range pending {
-		assigned, err := jobIsAssignedToServer(tx, &item.Job, serverID)
+	// collect pending jobs that can run in this server
+	var runnable []Queue
+	for _, q := range pending {
+		assigned, err := jobIsAssignedToServer(tx, &q.Job, serverID)
 		if err != nil {
-			tx.Rollback()
 			return nil, err
 		}
 		if assigned {
-			toBeProcessed = append(toBeProcessed, item)
+			runnable = append(runnable, q)
 		}
 	}
 
-	// remove from the queue table jobs that will be processed
+	// remove from the queue table jobs that will be run
 	var idsToDelete []int64
 	var jobs []Job
-	for _, item := range toBeProcessed {
-		idsToDelete = append(idsToDelete, item.ID)
-		jobs = append(jobs, item.Job)
+	for _, q := range runnable {
+		idsToDelete = append(idsToDelete, q.ID)
+		jobs = append(jobs, q.Job)
 	}
-
 	if len(idsToDelete) > 0 {
 		if err = tx.Where(idsToDelete).Delete(Queue{}).Error; err != nil {
-			tx.Rollback()
 			return nil, err
 		}
 	}
 
 	// schedule next execution for selected jobs
-	for _, item := range jobs {
-		if err := queueScheduleNext(tx, item); err != nil {
-			tx.Rollback()
+	for _, j := range jobs {
+		if err = queueScheduleNext(tx, j); err != nil {
 			return nil, err
 		}
 	}
-
-	tx.Commit()
 
 	return jobs, nil
 }
@@ -87,10 +86,9 @@ func queueScheduleNext(db *gorm.DB, job Job) error {
 		return err
 	}
 
-	nextTime := s.Next(time.Now().UTC()).UTC()
 	item := Queue{
 		JobID: job.ID,
-		Date:  nextTime,
+		Date:  s.Next(time.Now().UTC()).UTC(),
 	}
 	return db.Create(&item).Error
 }

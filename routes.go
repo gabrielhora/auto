@@ -82,14 +82,14 @@ func jobCreateHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 			return
 		}
 
-		f, verrs, err := newJobForm(r)
+		f, verrors, err := newJobForm(r)
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
 			return
 		}
-		if len(verrs) > 0 {
+		if len(verrors) > 0 {
 			data["form"] = f
-			data["errors"] = verrs
+			data["errors"] = verrors
 			tpl.ExecuteTemplate(w, "jobs/new", data)
 			return
 		}
@@ -101,7 +101,6 @@ func jobCreateHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 			return
 		}
 
-		log.Printf(`new job "%s" created`, job.Name)
 		http.Redirect(w, r, "/jobs/new/", http.StatusFound)
 	}
 }

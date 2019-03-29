@@ -17,8 +17,8 @@ func serverList(db *gorm.DB) ([]Server, error) {
 	return servers, err
 }
 
-func serverGet(db *gorm.DB, hostname string) (*Server, error) {
+func serverGet(db *gorm.DB, hostname string) (Server, error) {
 	var server Server
 	err := db.Where("hostname = ?", hostname).Find(&server).Error
-	return &server, err
+	return server, err
 }

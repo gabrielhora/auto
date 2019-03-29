@@ -3,15 +3,19 @@ package main
 import (
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
 func main() {
-	db, err := gorm.Open("postgres", "host=localhost user=auto password=auto dbname=auto sslmode=disable")
+	_ = godotenv.Load()
+
+	db, err := gorm.Open("postgres", os.Getenv("DSN"))
 	if err != nil {
 		log.Fatalf("error connecting to the database: %v", err)
 	}
@@ -42,47 +46,3 @@ func main() {
 	log.Printf("server running on %s", hs.Addr)
 	log.Fatal(hs.ListenAndServe())
 }
-
-/*
-func createScriptFile(script string) (string, error) {
-	p := path.Join(os.TempDir(), uuid.New().String())
-	f, err := os.Create(p)
-	defer f.Close()
-
-	if err != nil {
-		return "", err
-	}
-	if _, err := f.WriteString(script); err != nil {
-		return "", err
-	}
-	if err := os.Chmod(p, 0755); err != nil {
-		return "", err
-	}
-
-	log.Printf(`created file "%s"`, p)
-	return p, nil
-}
-
-func setup(job *Job) {
-	var err error
-	job.ScriptFilePath, err = createScriptFile(job.Script)
-	if err != nil {
-		log.Fatalf("error creating script file: %v", err)
-	}
-}
-
-func execute(job *Job) {
-	out, err := exec.Command(job.Shell, job.ScriptFilePath).CombinedOutput()
-	if err != nil {
-		log.Fatalf("error executing script: %v", err)
-	}
-	log.Printf("%s", out)
-}
-
-func cleanup(job *Job) {
-	err := os.Remove(job.ScriptFilePath)
-	if err != nil {
-		log.Printf("error deleting script file: %v", err)
-	}
-}
-*/
