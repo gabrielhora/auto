@@ -21,7 +21,7 @@ func main() {
 	}
 	db.SingularTable(true)
 	db.LogMode(true)
-	db.AutoMigrate(&Server{}, &Job{}, &JobServer{}, &JobHistory{}, &Queue{})
+	db.AutoMigrate(&Server{}, &Job{}, &JobServer{}, &JobExecution{}, &Queue{})
 
 	tpl := template.Must(template.ParseGlob("templates/**/*"))
 

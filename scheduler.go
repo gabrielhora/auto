@@ -2,10 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 	"log"
 	"math/rand"
 	"os"
+	"os/exec"
+	"path"
 	"time"
 )
 
@@ -42,25 +45,80 @@ func schedulerMainLoop(db *gorm.DB, server Server) {
 
 		log.Printf(`Found %d jobs to run on "%s"`, len(jobs), server.Hostname)
 		for _, job := range jobs {
-			go schedulerRunJob(db, job)
+			go schedulerJobRun(db, job, server)
 		}
 	}
 }
 
-func schedulerRunJob(db *gorm.DB, job Job) {
+func schedulerJobRun(db *gorm.DB, job Job, server Server) {
 	log.Printf(`Running job "%s"`, job.Name)
+
+	ex, err := jobExecutionNew(db, job.ID, server.ID)
+	if err != nil {
+		log.Printf(`could not create job execution for "%s": %v`, job.Name, err)
+		return
+	}
+
+	// always run setup script
+	if err := runScript(db, &ex, job.Shell, job.Setup); err != nil {
+		log.Printf("error executing setup script: %v", err)
+	}
+
+	// only run the main script if setup didn't fail
+	if ex.State == Running {
+		if err := runScript(db, &ex, job.Shell, job.Script); err != nil {
+			log.Printf("error executing main script: %v", err)
+		}
+	}
+
+	// always run teardown script
+	if err := runScript(db, &ex, job.Shell, job.Teardown); err != nil {
+		log.Printf("error executing teardown script: %v", err)
+	}
+
+	// if we get to here with state == running it means everything worked
+	// if the status == fail some of the script did not run properly
+	if ex.State == Running {
+		if err := jobExecutionLog(db, &ex, Success, "DONE"); err != nil {
+			log.Printf(`error updating "%s" state to Success: %v`, job.Name, err)
+		}
+	}
 }
 
-func randonDurationBetween(min, max int, d time.Duration) time.Duration {
-	rand.Seed(time.Now().UnixNano())
-	return time.Duration(min+rand.Intn(max-min)) * d
+// runScript executes a job script in it's shell updating the JobHistory with the execution log
+// and later deleting the generated temporary file
+func runScript(db *gorm.DB, history *JobExecution, shell, script string) error {
+	p, err := createTempFile(script)
+	if err != nil {
+		_ = jobExecutionLog(db, history, Fail, "error creating file: %v", err)
+		return err
+	}
+	defer func() {
+		if err := os.Remove(p); err != nil {
+			log.Printf(`could not delete temp file "%s": %v`, p, err)
+		}
+	}()
+
+	out, err := exec.Command(shell, p).CombinedOutput()
+	if err != nil {
+		_ = jobExecutionLog(db, history, Fail, "%s\n\nERROR: %v", out, err)
+		return err
+	}
+
+	return jobExecutionLog(db, history, Running, string(out))
 }
 
-/*
-func createScriptFile(script string) (string, error) {
+// createTempFile creates a temporary executable (755) file containing the script
+// passed in as parameter. Returns the full path of the new file.
+func createTempFile(script string) (string, error) {
 	p := path.Join(os.TempDir(), uuid.New().String())
+
 	f, err := os.Create(p)
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("error closing job script file: %v", err)
+		}
+	}()
 
 	if err != nil {
 		return "", err
@@ -71,31 +129,10 @@ func createScriptFile(script string) (string, error) {
 	if err := os.Chmod(p, 0755); err != nil {
 		return "", err
 	}
-
-	log.Printf(`created file "%s"`, p)
 	return p, nil
 }
 
-func setup(job *Job) {
-	var err error
-	job.ScriptFilePath, err = createScriptFile(job.Script)
-	if err != nil {
-		log.Fatalf("error creating script file: %v", err)
-	}
+func randonDurationBetween(min, max int, d time.Duration) time.Duration {
+	rand.Seed(time.Now().UnixNano())
+	return time.Duration(min+rand.Intn(max-min)) * d
 }
-
-func execute(job *Job) {
-	out, err := exec.Command(job.Shell, job.ScriptFilePath).CombinedOutput()
-	if err != nil {
-		log.Fatalf("error executing script: %v", err)
-	}
-	log.Printf("%s", out)
-}
-
-func cleanup(job *Job) {
-	err := os.Remove(job.ScriptFilePath)
-	if err != nil {
-		log.Printf("error deleting script file: %v", err)
-	}
-}
-*/

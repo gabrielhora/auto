@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/lib/pq"
+	"log"
 	"time"
 )
 
@@ -12,7 +14,10 @@ type Job struct {
 	Name        string  `gorm:"not null"`
 	Description *string `gorm:"type:text"`
 	Shell       string  `gorm:"not null"`
-	Script      string  `gorm:"not null"`
+
+	Setup    string `gorm:"type:text;not null"`
+	Script   string `gorm:"type:text;not null"`
+	Teardown string `gorm:"type:text;not null"`
 
 	// Cron expression to determine when this Job is executed
 	// If null this job will only run on demand
@@ -31,34 +36,6 @@ type JobServer struct {
 
 	Server   Server
 	ServerID int64 `gorm:"not null;index;type:bigint references server(id)"`
-}
-
-type JobHistory struct {
-	ID        int64 `gorm:"type:bigserial;primary_key"`
-	CreatedAt time.Time
-
-	Job   Job
-	JobID int64 `gorm:"not null;index;type:bigint references job(id)"`
-
-	// In which server this job was executed
-	Server   Server
-	ServerID int64 `gorm:"not null;index"`
-
-	StartDate time.Time `gorm:"not null"`
-	EndDate   pq.NullTime
-
-	// True if script exit code is 0
-	Success bool
-
-	// Shell output log
-	Log string `gorm:"type:text"`
-}
-
-func (h JobHistory) Duration() string {
-	if !h.EndDate.Valid {
-		return ""
-	}
-	return h.EndDate.Time.Sub(h.StartDate).String()
 }
 
 func jobCreate(db *gorm.DB, f jobForm) (Job, error) {
@@ -137,12 +114,75 @@ func jobServers(db *gorm.DB, jobID int64) ([]Server, error) {
 	return servers, err
 }
 
-func jobHistory(db *gorm.DB, jobID int64) ([]JobHistory, error) {
-	var history []JobHistory
+type JobState int
+
+const (
+	Running JobState = iota
+	Success
+	Fail
+)
+
+func (j JobState) String() string {
+	states := []string{"Running", "Success", "Fail"}
+	if j >= 0 && int(j) < len(states) {
+		return states[j]
+	}
+	return ""
+}
+
+type JobExecution struct {
+	ID        int64 `gorm:"type:bigserial;primary_key"`
+	CreatedAt time.Time
+
+	Job   Job
+	JobID int64 `gorm:"not null;index;type:bigint references job(id)"`
+
+	// In which server this job was executed
+	Server   Server
+	ServerID int64 `gorm:"not null;index"`
+
+	StartDate time.Time `gorm:"not null"`
+	EndDate   pq.NullTime
+	State     JobState
+	Log       string `gorm:"type:text"`
+}
+
+func (h JobExecution) Duration() string {
+	if !h.EndDate.Valid {
+		return ""
+	}
+	return h.EndDate.Time.Sub(h.StartDate).String()
+}
+
+func jobExecutions(db *gorm.DB, jobID int64) ([]JobExecution, error) {
+	var ex []JobExecution
 	err := db.
 		Where("job_id = ?", jobID).
 		Preload("Server").
-		Find(&history).
+		Find(&ex).
 		Error
-	return history, err
+	return ex, err
+}
+
+func jobExecutionNew(db *gorm.DB, jobID, serverID int64) (JobExecution, error) {
+	ex := JobExecution{
+		JobID:     jobID,
+		ServerID:  serverID,
+		State:     Running,
+		StartDate: time.Now().UTC(),
+	}
+	err := db.Create(&ex).Error
+	return ex, err
+}
+
+func jobExecutionLog(db *gorm.DB, ex *JobExecution, state JobState, msg string, args ...interface{}) error {
+	ex.State = state
+	if msg != "" {
+		ex.Log = fmt.Sprintf(msg, args...)
+	}
+	if err := db.Save(&ex).Error; err != nil {
+		log.Printf(`error job's updating log: %v`, err)
+		return err
+	}
+	return nil
 }
