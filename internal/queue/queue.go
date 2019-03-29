@@ -1,6 +1,7 @@
-package main
+package queue
 
 import (
+	"auto/internal/job"
 	"github.com/jinzhu/gorm"
 	"github.com/robfig/cron"
 	"log"
@@ -10,12 +11,12 @@ import (
 type Queue struct {
 	ID        int64 `gorm:"type:bigserial;primary_key"`
 	CreatedAt time.Time
-	Job       Job
+	Job       job.Job
 	JobID     int64     `gorm:"not null;index;type:bigint references job(id)"`
 	Date      time.Time `gorm:"not null;index"`
 }
 
-func queuePendingJobs(db *gorm.DB, serverID int64) ([]Job, error) {
+func Pending(db *gorm.DB, serverID int64) ([]job.Job, error) {
 	tx := db.Begin()
 
 	var err error
@@ -42,7 +43,7 @@ func queuePendingJobs(db *gorm.DB, serverID int64) ([]Job, error) {
 	// collect pending jobs that can run in this server
 	var runnable []Queue
 	for _, q := range pending {
-		assigned, err := jobIsAssignedToServer(tx, q.Job, serverID)
+		assigned, err := job.IsAssignedToServer(tx, q.Job, serverID)
 		if err != nil {
 			return nil, err
 		}
@@ -53,7 +54,7 @@ func queuePendingJobs(db *gorm.DB, serverID int64) ([]Job, error) {
 
 	// remove from the queue table jobs that will be run
 	var idsToDelete []int64
-	var jobs []Job
+	var jobs []job.Job
 	for _, q := range runnable {
 		idsToDelete = append(idsToDelete, q.ID)
 		jobs = append(jobs, q.Job)
@@ -66,7 +67,7 @@ func queuePendingJobs(db *gorm.DB, serverID int64) ([]Job, error) {
 
 	// schedule next execution for selected jobs
 	for _, j := range jobs {
-		if err = queueScheduleNext(tx, j); err != nil {
+		if err = ScheduleNext(tx, j); err != nil {
 			return nil, err
 		}
 	}
@@ -74,7 +75,7 @@ func queuePendingJobs(db *gorm.DB, serverID int64) ([]Job, error) {
 	return jobs, nil
 }
 
-func queueScheduleNext(db *gorm.DB, job Job) error {
+func ScheduleNext(db *gorm.DB, job job.Job) error {
 	if job.Cron == nil {
 		log.Printf(`job "%s" do not have a cron expression, will not be scheduled`, job.Name)
 		return nil

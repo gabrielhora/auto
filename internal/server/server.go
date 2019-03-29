@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"github.com/jinzhu/gorm"
@@ -12,13 +12,13 @@ type Server struct {
 	Hostname  string `gorm:"not null"`
 }
 
-func serverList(db *gorm.DB) ([]Server, error) {
+func List(db *gorm.DB) ([]Server, error) {
 	var servers []Server
 	err := db.Order("hostname asc").Find(&servers).Error
 	return servers, err
 }
 
-func serverGet(db *gorm.DB, hostname string) (Server, error) {
+func Get(db *gorm.DB, hostname string) (Server, error) {
 	var server Server
 	err := db.Where("hostname = ?", hostname).Find(&server).Error
 	if gorm.IsRecordNotFoundError(err) {
@@ -27,13 +27,13 @@ func serverGet(db *gorm.DB, hostname string) (Server, error) {
 	return server, err
 }
 
-func serverRegisterSelf(db *gorm.DB) (Server, error) {
+func RegisterSelf(db *gorm.DB) (Server, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return Server{}, err
 	}
 
-	s, err := serverGet(db, hostname)
+	s, err := Get(db, hostname)
 	if err != nil {
 		return Server{}, err
 	}

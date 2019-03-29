@@ -1,4 +1,4 @@
-package main
+package form
 
 import (
 	"github.com/gorilla/schema"
@@ -8,7 +8,7 @@ import (
 
 var schemaDecoder = schema.NewDecoder()
 
-type jobForm struct {
+type Job struct {
 	Name        string
 	Description string
 	Cron        string
@@ -20,15 +20,15 @@ type jobForm struct {
 	AnyServer   bool `schema:"-"`
 }
 
-func newJobForm(r *http.Request) (jobForm, url.Values, error) {
-	f := jobForm{}
+func NewJob(r *http.Request) (Job, url.Values, error) {
+	f := Job{}
 	errs := url.Values{}
 
 	if err := r.ParseForm(); err != nil {
-		return jobForm{}, nil, err
+		return Job{}, nil, err
 	}
 	if err := schemaDecoder.Decode(&f, r.PostForm); err != nil {
-		return jobForm{}, nil, err
+		return Job{}, nil, err
 	}
 	for _, s := range f.Servers {
 		if s == -1 {

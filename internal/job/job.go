@@ -1,6 +1,8 @@
-package main
+package job
 
 import (
+	"auto/internal/form"
+	"auto/internal/server"
 	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/lib/pq"
@@ -27,18 +29,18 @@ type Job struct {
 	AnyServer bool `gorm:"not null"`
 }
 
-// JobServer specifies in what Servers a Job can run
-type JobServer struct {
+// AssignedServer specifies in what Servers a Job can run
+type AssignedServer struct {
 	ID int64 `gorm:"type:bigserial;primary_key"`
 
 	Job   Job
 	JobID int64 `gorm:"not null;index;type:bigint references job(id)"`
 
-	Server   Server
+	Server   server.Server
 	ServerID int64 `gorm:"not null;index;type:bigint references server(id)"`
 }
 
-func jobCreate(db *gorm.DB, f jobForm) (Job, error) {
+func Create(db *gorm.DB, f form.Job) (Job, error) {
 	tx := db.Begin()
 
 	job := Job{
@@ -56,7 +58,7 @@ func jobCreate(db *gorm.DB, f jobForm) (Job, error) {
 	}
 
 	for _, id := range f.Servers {
-		if err = jobAssignToServer(tx, job.ID, id); err != nil {
+		if err = AssignToServer(tx, job.ID, id); err != nil {
 			tx.Rollback()
 			return Job{}, err
 		}
@@ -66,17 +68,17 @@ func jobCreate(db *gorm.DB, f jobForm) (Job, error) {
 	return job, err
 }
 
-func jobAssignToServer(db *gorm.DB, jobID, serverID int64) error {
-	js := JobServer{JobID: jobID, ServerID: serverID}
+func AssignToServer(db *gorm.DB, jobID, serverID int64) error {
+	js := AssignedServer{JobID: jobID, ServerID: serverID}
 	return db.Create(&js).Error
 }
 
-func jobIsAssignedToServer(db *gorm.DB, job Job, serverID int64) (bool, error) {
+func IsAssignedToServer(db *gorm.DB, job Job, serverID int64) (bool, error) {
 	if job.AnyServer {
 		return true, nil
 	}
 
-	var js JobServer
+	var js AssignedServer
 	err := db.Where("job_id = ? AND server_id = ?", job.ID, serverID).First(&js).Error
 	if gorm.IsRecordNotFoundError(err) {
 		return false, nil
@@ -88,13 +90,13 @@ func jobIsAssignedToServer(db *gorm.DB, job Job, serverID int64) (bool, error) {
 	return true, nil
 }
 
-func jobList(db *gorm.DB) ([]Job, error) {
+func List(db *gorm.DB) ([]Job, error) {
 	var jobs []Job
 	err := db.Order("name").Find(&jobs).Error
 	return jobs, err
 }
 
-func jobGet(db *gorm.DB, jobID int64) (Job, error) {
+func Get(db *gorm.DB, jobID int64) (Job, error) {
 	var job Job
 	err := db.First(&job, "id = ?", jobID).Error
 	if gorm.IsRecordNotFoundError(err) {
@@ -103,26 +105,26 @@ func jobGet(db *gorm.DB, jobID int64) (Job, error) {
 	return job, err
 }
 
-func jobServers(db *gorm.DB, jobID int64) ([]Server, error) {
-	var servers []Server
+func Servers(db *gorm.DB, jobID int64) ([]server.Server, error) {
+	var servers []server.Server
 	err := db.
 		Select(`"server".*`).
-		Joins(`inner join "job_server" on "job_server"."server_id" = "server"."id"`).
-		Where(`"job_server"."job_id" = ?`, jobID).
+		Joins(`inner join "assigned_server" on "assigned_server"."server_id" = "server"."id"`).
+		Where(`"assigned_server"."job_id" = ?`, jobID).
 		Find(&servers).
 		Error
 	return servers, err
 }
 
-type JobState int
+type State int
 
 const (
-	Running JobState = iota
+	Running State = iota
 	Success
 	Fail
 )
 
-func (j JobState) String() string {
+func (j State) String() string {
 	states := []string{"Running", "Success", "Fail"}
 	if j >= 0 && int(j) < len(states) {
 		return states[j]
@@ -130,7 +132,7 @@ func (j JobState) String() string {
 	return ""
 }
 
-type JobExecution struct {
+type Execution struct {
 	ID        int64 `gorm:"type:bigserial;primary_key"`
 	CreatedAt time.Time
 
@@ -138,24 +140,24 @@ type JobExecution struct {
 	JobID int64 `gorm:"not null;index;type:bigint references job(id)"`
 
 	// In which server this job was executed
-	Server   Server
+	Server   server.Server
 	ServerID int64 `gorm:"not null;index"`
 
 	StartDate time.Time `gorm:"not null"`
 	EndDate   pq.NullTime
-	State     JobState
+	State     State
 	Log       string `gorm:"type:text"`
 }
 
-func (h JobExecution) Duration() string {
+func (h Execution) Duration() string {
 	if !h.EndDate.Valid {
 		return ""
 	}
 	return h.EndDate.Time.Sub(h.StartDate).String()
 }
 
-func jobExecutions(db *gorm.DB, jobID int64) ([]JobExecution, error) {
-	var ex []JobExecution
+func Executions(db *gorm.DB, jobID int64) ([]Execution, error) {
+	var ex []Execution
 	err := db.
 		Where("job_id = ?", jobID).
 		Preload("Server").
@@ -164,8 +166,8 @@ func jobExecutions(db *gorm.DB, jobID int64) ([]JobExecution, error) {
 	return ex, err
 }
 
-func jobExecutionNew(db *gorm.DB, jobID, serverID int64) (JobExecution, error) {
-	ex := JobExecution{
+func CreateExecution(db *gorm.DB, jobID, serverID int64) (Execution, error) {
+	ex := Execution{
 		JobID:     jobID,
 		ServerID:  serverID,
 		State:     Running,
@@ -175,7 +177,7 @@ func jobExecutionNew(db *gorm.DB, jobID, serverID int64) (JobExecution, error) {
 	return ex, err
 }
 
-func jobExecutionLog(db *gorm.DB, ex *JobExecution, state JobState, msg string, args ...interface{}) error {
+func ExecutionLog(db *gorm.DB, ex *Execution, state State, msg string, args ...interface{}) error {
 	ex.State = state
 	if msg != "" {
 		ex.Log = fmt.Sprintf(msg, args...)

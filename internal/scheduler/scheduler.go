@@ -1,6 +1,9 @@
-package main
+package scheduler
 
 import (
+	"auto/internal/job"
+	"auto/internal/queue"
+	"auto/internal/server"
 	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 	"log"
@@ -11,67 +14,67 @@ import (
 	"time"
 )
 
-func schedulerRun(db *gorm.DB, server Server) {
+func Run(db *gorm.DB, server server.Server) {
 	sleep := randonDurationBetween(10, 60, time.Second)
 
 	for {
 		time.Sleep(sleep)
 		log.Printf(`Running scheduler for "%s"...`, server.Hostname)
 
-		jobs, err := queuePendingJobs(db, server.ID)
+		jobs, err := queue.Pending(db, server.ID)
 		if err != nil {
 			log.Printf("error getting pending jobs: %v", err)
 			continue
 		}
 
 		log.Printf(`Found %d jobs to run on "%s"`, len(jobs), server.Hostname)
-		for _, job := range jobs {
-			go schedulerJobRun(db, job, server)
+		for _, j := range jobs {
+			go schedulerJobRun(db, j, server)
 		}
 	}
 }
 
-func schedulerJobRun(db *gorm.DB, job Job, server Server) {
-	log.Printf(`Running job "%s"`, job.Name)
+func schedulerJobRun(db *gorm.DB, j job.Job, server server.Server) {
+	log.Printf(`Running job "%s"`, j.Name)
 
-	ex, err := jobExecutionNew(db, job.ID, server.ID)
+	ex, err := job.CreateExecution(db, j.ID, server.ID)
 	if err != nil {
-		log.Printf(`could not create job execution for "%s": %v`, job.Name, err)
+		log.Printf(`could not create job execution for "%s": %v`, j.Name, err)
 		return
 	}
 
 	// always run setup script
-	if err := runScript(db, &ex, job.Shell, job.Setup); err != nil {
+	if err := runScript(db, &ex, j.Shell, j.Setup); err != nil {
 		log.Printf("error executing setup script: %v", err)
 	}
 
 	// only run the main script if setup didn't fail
-	if ex.State == Running {
-		if err := runScript(db, &ex, job.Shell, job.Script); err != nil {
+	if ex.State == job.Running {
+		if err := runScript(db, &ex, j.Shell, j.Script); err != nil {
 			log.Printf("error executing main script: %v", err)
 		}
 	}
 
 	// always run teardown script
-	if err := runScript(db, &ex, job.Shell, job.Teardown); err != nil {
+	if err := runScript(db, &ex, j.Shell, j.Teardown); err != nil {
 		log.Printf("error executing teardown script: %v", err)
 	}
 
 	// if we get to here with state == running it means everything worked
 	// if the status == fail some of the script did not run properly
-	if ex.State == Running {
-		if err := jobExecutionLog(db, &ex, Success, "DONE"); err != nil {
-			log.Printf(`error updating "%s" state to Success: %v`, job.Name, err)
+	if ex.State == job.Running {
+		if err := job.ExecutionLog(db, &ex, job.Success, "DONE"); err != nil {
+			log.Printf(`error updating "%s" state to Success: %v`, j.Name, err)
 		}
 	}
 }
 
 // runScript executes a job script in it's shell updating the JobHistory with the execution log
 // and later deleting the generated temporary file
-func runScript(db *gorm.DB, history *JobExecution, shell, script string) error {
+func runScript(db *gorm.DB, ex *job.Execution, shell, script string) error {
 	p, err := createTempFile(script)
 	if err != nil {
-		_ = jobExecutionLog(db, history, Fail, "error creating file: %v", err)
+		_ = job.ExecutionLog(db, ex, job.Fail, "error creating file: %v", err)
 		return err
 	}
 	defer func() {
@@ -82,11 +85,11 @@ func runScript(db *gorm.DB, history *JobExecution, shell, script string) error {
 
 	out, err := exec.Command(shell, p).CombinedOutput()
 	if err != nil {
-		_ = jobExecutionLog(db, history, Fail, "%s\n\nERROR: %v", out, err)
+		_ = job.ExecutionLog(db, ex, job.Fail, "%s\n\nERROR: %v", out, err)
 		return err
 	}
 
-	return jobExecutionLog(db, history, Running, string(out))
+	return job.ExecutionLog(db, ex, job.Running, string(out))
 }
 
 // createTempFile creates a temporary executable (755) file containing the script
