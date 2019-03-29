@@ -61,10 +61,10 @@ func (h JobHistory) Duration() string {
 	return h.EndDate.Time.Sub(h.StartDate).String()
 }
 
-func jobCreate(db *gorm.DB, f *jobForm) (*Job, error) {
+func jobCreate(db *gorm.DB, f jobForm) (Job, error) {
 	tx := db.Begin()
 
-	job := &Job{
+	job := Job{
 		Name:        f.Name,
 		Description: &f.Description,
 		Shell:       f.Shell,
@@ -73,15 +73,15 @@ func jobCreate(db *gorm.DB, f *jobForm) (*Job, error) {
 	}
 
 	var err error
-	if err = tx.Create(job).Error; err != nil {
+	if err = tx.Create(&job).Error; err != nil {
 		tx.Rollback()
-		return nil, err
+		return Job{}, err
 	}
 
 	for _, id := range f.Servers {
 		if err = jobAssignToServer(tx, job.ID, id); err != nil {
 			tx.Rollback()
-			return nil, err
+			return Job{}, err
 		}
 	}
 
@@ -90,11 +90,11 @@ func jobCreate(db *gorm.DB, f *jobForm) (*Job, error) {
 }
 
 func jobAssignToServer(db *gorm.DB, jobID, serverID int64) error {
-	js := &JobServer{JobID: jobID, ServerID: serverID}
-	return db.Create(js).Error
+	js := JobServer{JobID: jobID, ServerID: serverID}
+	return db.Create(&js).Error
 }
 
-func jobIsAssignedToServer(db *gorm.DB, job *Job, serverID int64) (bool, error) {
+func jobIsAssignedToServer(db *gorm.DB, job Job, serverID int64) (bool, error) {
 	if job.AnyServer {
 		return true, nil
 	}
@@ -117,13 +117,13 @@ func jobList(db *gorm.DB) ([]Job, error) {
 	return jobs, err
 }
 
-func jobGet(db *gorm.DB, jobID int64) (*Job, error) {
+func jobGet(db *gorm.DB, jobID int64) (Job, error) {
 	var job Job
 	err := db.First(&job, "id = ?", jobID).Error
 	if gorm.IsRecordNotFoundError(err) {
-		return nil, nil
+		return Job{}, nil
 	}
-	return &job, err
+	return job, err
 }
 
 func jobServers(db *gorm.DB, jobID int64) ([]Server, error) {

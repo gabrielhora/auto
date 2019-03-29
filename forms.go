@@ -17,15 +17,15 @@ type jobForm struct {
 	AnyServer   bool `schema:"-"`
 }
 
-func newJobForm(r *http.Request) (*jobForm, url.Values, error) {
-	f := &jobForm{}
+func newJobForm(r *http.Request) (jobForm, url.Values, error) {
+	f := jobForm{}
 	errs := url.Values{}
 
 	if err := r.ParseForm(); err != nil {
-		return nil, nil, err
+		return jobForm{}, nil, err
 	}
-	if err := schemaDecoder.Decode(f, r.PostForm); err != nil {
-		return nil, nil, err
+	if err := schemaDecoder.Decode(&f, r.PostForm); err != nil {
+		return jobForm{}, nil, err
 	}
 	for _, s := range f.Servers {
 		if s == -1 {

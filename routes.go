@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"html/template"
@@ -34,6 +35,11 @@ func jobShowHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 		if err != nil {
 			log.Printf("error getting job with id %d: %v", id, err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		if job.ID == 0 {
+			http.NotFound(w, r)
 			return
 		}
 
@@ -101,6 +107,6 @@ func jobCreateHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 			return
 		}
 
-		http.Redirect(w, r, "/jobs/new/", http.StatusFound)
+		http.Redirect(w, r, fmt.Sprintf("/jobs/%d", job.ID), http.StatusFound)
 	}
 }

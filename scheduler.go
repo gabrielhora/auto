@@ -10,7 +10,6 @@ import (
 )
 
 func schedulerRun(db *gorm.DB) error {
-	sleep := randonDurationBetween(10, 60, time.Second)
 	hostname, err := os.Hostname()
 	if err != nil {
 		return err
@@ -24,11 +23,13 @@ func schedulerRun(db *gorm.DB) error {
 		return fmt.Errorf("could not find server with hostname %s", hostname)
 	}
 
-	go schedulerMainLoop(sleep, server, db)
+	go schedulerMainLoop(db, server)
 	return nil
 }
 
-func schedulerMainLoop(sleep time.Duration, server Server, db *gorm.DB) {
+func schedulerMainLoop(db *gorm.DB, server Server) {
+	sleep := randonDurationBetween(10, 60, time.Second)
+
 	for {
 		time.Sleep(sleep)
 		log.Printf(`Running scheduler for "%s"...`, server.Hostname)
@@ -41,12 +42,12 @@ func schedulerMainLoop(sleep time.Duration, server Server, db *gorm.DB) {
 
 		log.Printf(`Found %d jobs to run on "%s"`, len(jobs), server.Hostname)
 		for _, job := range jobs {
-			go schedulerRunJob(job)
+			go schedulerRunJob(db, job)
 		}
 	}
 }
 
-func schedulerRunJob(job Job) {
+func schedulerRunJob(db *gorm.DB, job Job) {
 	log.Printf(`Running job "%s"`, job.Name)
 }
 
