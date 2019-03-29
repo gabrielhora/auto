@@ -1,9 +1,9 @@
 package main
 
 import (
+	"auto/internal/handler"
 	"auto/internal/job"
 	"auto/internal/queue"
-	"auto/internal/route"
 	"auto/internal/scheduler"
 	"auto/internal/server"
 	"github.com/gorilla/mux"
@@ -42,9 +42,9 @@ func main() {
 	router := mux.NewRouter()
 	router.StrictSlash(true)
 
-	router.HandleFunc("/jobs/", route.JobListHandler(db, tpl)).Methods("GET")
-	router.HandleFunc("/jobs/{id:[0-9]+}/", route.JobShowHandler(db, tpl)).Methods("GET")
-	router.HandleFunc("/jobs/new/", route.JobCreateHandler(db, tpl)).Methods("GET", "POST")
+	router.HandleFunc("/jobs/", handler.JobList(db, tpl)).Methods("GET")
+	router.HandleFunc("/jobs/{id:[0-9]+}/", handler.JobShow(db, tpl)).Methods("GET")
+	router.HandleFunc("/jobs/new/", handler.JobCreate(db, tpl)).Methods("GET", "POST")
 
 	hs := &http.Server{
 		Addr:         ":8000",

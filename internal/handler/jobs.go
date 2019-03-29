@@ -1,4 +1,4 @@
-package route
+package handler
 
 import (
 	"auto/internal/form"
@@ -13,7 +13,7 @@ import (
 	"strconv"
 )
 
-func JobListHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
+func JobList(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		jobs, err := job.List(db)
 		if err != nil {
@@ -29,7 +29,7 @@ func JobListHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 	}
 }
 
-func JobShowHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
+func JobShow(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		id, _ := strconv.ParseInt(params["id"], 10, 64)
@@ -70,7 +70,7 @@ func JobShowHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 	}
 }
 
-func JobCreateHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
+func JobCreate(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		servers, err := server.List(db)
 		if err != nil {
