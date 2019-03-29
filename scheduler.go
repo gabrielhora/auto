@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 	"log"
@@ -12,25 +11,7 @@ import (
 	"time"
 )
 
-func schedulerRun(db *gorm.DB) error {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-
-	server, err := serverGet(db, hostname)
-	if err != nil {
-		return err
-	}
-	if server.ID == 0 {
-		return fmt.Errorf("could not find server with hostname %s", hostname)
-	}
-
-	go schedulerMainLoop(db, server)
-	return nil
-}
-
-func schedulerMainLoop(db *gorm.DB, server Server) {
+func schedulerRun(db *gorm.DB, server Server) {
 	sleep := randonDurationBetween(10, 60, time.Second)
 
 	for {

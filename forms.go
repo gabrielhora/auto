@@ -11,8 +11,11 @@ var schemaDecoder = schema.NewDecoder()
 type jobForm struct {
 	Name        string
 	Description string
+	Cron        string
 	Shell       string
+	Setup       string
 	Script      string
+	Teardown    string
 	Servers     []int64
 	AnyServer   bool `schema:"-"`
 }

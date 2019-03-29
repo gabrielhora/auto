@@ -42,7 +42,7 @@ func queuePendingJobs(db *gorm.DB, serverID int64) ([]Job, error) {
 	// collect pending jobs that can run in this server
 	var runnable []Queue
 	for _, q := range pending {
-		assigned, err := jobIsAssignedToServer(tx, &q.Job, serverID)
+		assigned, err := jobIsAssignedToServer(tx, q.Job, serverID)
 		if err != nil {
 			return nil, err
 		}

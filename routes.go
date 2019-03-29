@@ -78,7 +78,7 @@ func jobCreateHandler(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 
 		data := map[string]interface{}{
 			"title":   "Create new job",
-			"form":    &jobForm{},
+			"form":    &jobForm{Shell: "/bin/bash"},
 			"errors":  nil,
 			"servers": servers,
 		}

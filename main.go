@@ -25,6 +25,15 @@ func main() {
 
 	tpl := template.Must(template.ParseGlob("templates/**/*"))
 
+	// register the server if not registered yet
+	server, err := serverRegisterSelf(db)
+	if err != nil {
+		log.Fatalf("error registering server: %v", err)
+	}
+
+	// start the scheduler background job for this server
+	go schedulerRun(db, server)
+
 	router := mux.NewRouter()
 	router.StrictSlash(true)
 
@@ -37,10 +46,6 @@ func main() {
 		Handler:      router,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
-	}
-
-	if err = schedulerRun(db); err != nil {
-		log.Fatalf("could not start scheduler: %v", err)
 	}
 
 	log.Printf("server running on %s", hs.Addr)

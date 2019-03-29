@@ -5,7 +5,7 @@
 
   <form action="" method="post">
     <div>
-      <label for="Name">Name:</label>
+      <label for="Name">Name: *</label>
       <input type="text" name="Name" id="Name" value="{{.form.Name}}" required>
     </div>
     <div>
@@ -13,16 +13,24 @@
       <textarea name="Description" id="Description" cols="30" rows="3">{{.form.Description}}</textarea>
     </div>
     <div>
-      <label for="Shell">Shell:</label>
-      <select name="Shell" id="Shell" required>
-        <option value="">---</option>
-        <option value="/bin/sh">/bin/sh</option>
-        <option value="/bin/bash">/bin/bash</option>
-      </select>
+      <label for="Shell">Shell: *</label>
+      <input type="text" name="Shell" id="Shell" value="{{.form.Shell}}" required>
     </div>
     <div>
-      <label for="Script">Script:</label>
+      <label for="Cron">Cron:</label>
+      <input type="text" name="Cron" id="Cron" value="{{.form.Cron}}">
+    </div>
+    <div>
+      <label for="Setup">Setup:</label>
+      <textarea name="Setup" id="Setup" cols="50" rows="15">{{.form.Setup}}</textarea>
+    </div>
+    <div>
+      <label for="Script">Script: *</label>
       <textarea name="Script" id="Script" cols="50" rows="15" required>{{.form.Script}}</textarea>
+    </div>
+    <div>
+      <label for="Teardown">Teardown:</label>
+      <textarea name="Teardown" id="Teardown" cols="50" rows="15">{{.form.Teardown}}</textarea>
     </div>
     <div>
       <label for="Servers">Server:</label>
