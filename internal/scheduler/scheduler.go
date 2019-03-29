@@ -29,12 +29,12 @@ func Run(db *gorm.DB, server server.Server) {
 
 		log.Printf(`Found %d jobs to run on "%s"`, len(jobs), server.Hostname)
 		for _, j := range jobs {
-			go schedulerJobRun(db, j, server)
+			go runJob(db, j, server)
 		}
 	}
 }
 
-func schedulerJobRun(db *gorm.DB, j job.Job, server server.Server) {
+func runJob(db *gorm.DB, j job.Job, server server.Server) {
 	log.Printf(`Running job "%s"`, j.Name)
 
 	ex, err := job.CreateExecution(db, j.ID, server.ID)
@@ -72,6 +72,11 @@ func schedulerJobRun(db *gorm.DB, j job.Job, server server.Server) {
 // runScript executes a job script in it's shell updating the JobHistory with the execution log
 // and later deleting the generated temporary file
 func runScript(db *gorm.DB, ex *job.Execution, shell, script string) error {
+	if script == "" {
+		log.Print("script is empty, nothing to do")
+		return nil
+	}
+
 	p, err := createTempFile(script)
 	if err != nil {
 		_ = job.ExecutionLog(db, ex, job.Fail, "error creating file: %v", err)
