@@ -46,8 +46,11 @@ func Create(db *gorm.DB, f form.Job) (Job, error) {
 	job := Job{
 		Name:        f.Name,
 		Description: &f.Description,
+		Cron:        &f.Cron,
 		Shell:       f.Shell,
+		Setup:       f.Setup,
 		Script:      f.Script,
+		Teardown:    f.Teardown,
 		AnyServer:   f.AnyServer,
 	}
 
@@ -161,6 +164,7 @@ func Executions(db *gorm.DB, jobID int64) ([]Execution, error) {
 	err := db.
 		Where("job_id = ?", jobID).
 		Preload("Server").
+		Order("start_date desc").
 		Find(&ex).
 		Error
 	return ex, err
@@ -180,7 +184,7 @@ func CreateExecution(db *gorm.DB, jobID, serverID int64) (Execution, error) {
 func ExecutionLog(db *gorm.DB, ex *Execution, state State, msg string, args ...interface{}) error {
 	ex.State = state
 	if msg != "" {
-		ex.Log = fmt.Sprintf(msg, args...)
+		ex.Log = fmt.Sprintf("%s\n%s", ex.Log, fmt.Sprintf(msg, args...))
 	}
 	if err := db.Save(&ex).Error; err != nil {
 		log.Printf(`error job's updating log: %v`, err)

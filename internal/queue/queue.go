@@ -76,7 +76,7 @@ func Pending(db *gorm.DB, serverID int64) ([]job.Job, error) {
 }
 
 func ScheduleNext(db *gorm.DB, job job.Job) error {
-	if job.Cron == nil {
+	if job.Cron == nil || *job.Cron == "" {
 		log.Printf(`job "%s" do not have a cron expression, will not be scheduled`, job.Name)
 		return nil
 	}
@@ -87,9 +87,11 @@ func ScheduleNext(db *gorm.DB, job job.Job) error {
 		return err
 	}
 
-	item := Queue{
-		JobID: job.ID,
-		Date:  s.Next(time.Now().UTC()).UTC(),
-	}
+	t := s.Next(time.Now().UTC())
+	return ScheduleTo(db, job, t)
+}
+
+func ScheduleTo(db *gorm.DB, j job.Job, t time.Time) error {
+	item := Queue{JobID: j.ID, Date: t.UTC()}
 	return db.Create(&item).Error
 }

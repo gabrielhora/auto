@@ -3,22 +3,20 @@ package handler
 import (
 	"auto/internal/form"
 	"auto/internal/job"
+	"auto/internal/queue"
 	"auto/internal/server"
 	"fmt"
-	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	"html/template"
-	"log"
 	"net/http"
-	"strconv"
+	"time"
 )
 
 func JobList(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		jobs, err := job.List(db)
 		if err != nil {
-			log.Printf("error getting job list: %v", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalServerError(w, err)
 			return
 		}
 		data := map[string]interface{}{
@@ -31,13 +29,11 @@ func JobList(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 
 func JobShow(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		params := mux.Vars(r)
-		id, _ := strconv.ParseInt(params["id"], 10, 64)
+		id := int64Param(r, "id")
 		j, err := job.Get(db, id)
 
 		if err != nil {
-			log.Printf("error getting job with id %d: %v", id, err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalServerError(w, err)
 			return
 		}
 
@@ -48,15 +44,13 @@ func JobShow(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 
 		servers, err := job.Servers(db, j.ID)
 		if err != nil {
-			log.Printf("error getting job servers: %v", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalServerError(w, err)
 			return
 		}
 
 		executions, err := job.Executions(db, j.ID)
 		if err != nil {
-			log.Printf("error getting job history: %v", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalServerError(w, err)
 			return
 		}
 
@@ -74,8 +68,7 @@ func JobCreate(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		servers, err := server.List(db)
 		if err != nil {
-			log.Printf("error getting server list: %v", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalServerError(w, err)
 			return
 		}
 
@@ -105,11 +98,38 @@ func JobCreate(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
 
 		j, err := job.Create(db, f)
 		if err != nil {
-			log.Printf("error creating new job: %v", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			internalServerError(w, err)
 			return
 		}
 
 		http.Redirect(w, r, fmt.Sprintf("/jobs/%d", j.ID), http.StatusFound)
+	}
+}
+
+func JobRun(db *gorm.DB, tpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := int64Param(r, "id")
+		j, err := job.Get(db, id)
+		if err != nil {
+			internalServerError(w, err)
+			return
+		}
+
+		data := map[string]interface{}{
+			"title": j.Name,
+			"job":   j,
+		}
+
+		if r.Method == "GET" {
+			tpl.ExecuteTemplate(w, "jobs/run", data)
+			return
+		}
+
+		if err := queue.ScheduleTo(db, j, time.Now()); err != nil {
+			internalServerError(w, err)
+			return
+		}
+
+		http.Redirect(w, r, fmt.Sprintf("/jobs/%d/", j.ID), http.StatusFound)
 	}
 }

@@ -15,7 +15,7 @@ import (
 )
 
 func Run(db *gorm.DB, server server.Server) {
-	sleep := randonDurationBetween(10, 60, time.Second)
+	sleep := randonDurationBetween(5, 10, time.Second)
 
 	for {
 		time.Sleep(sleep)

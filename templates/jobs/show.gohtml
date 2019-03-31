@@ -3,15 +3,30 @@
 
   <h1>{{.job.Name}}</h1>
 
+  <nav>
+    <a href="#">Edit</a>
+    <a href="#">Delete</a>
+    <a href="/jobs/{{.job.ID}}/run/">Run now</a>
+  </nav>
+
   <dl>
     <dt>Description</dt>
     <dd>{{.job.Description}}</dd>
 
+    <dt>Cron</dt>
+    <dd>{{.job.Cron}}</dd>
+
     <dt>Shell</dt>
     <dd>{{.job.Shell}}</dd>
 
+    <dt>Setup</dt>
+    <dd><pre>{{.job.Setup}}</pre></dd>
+
     <dt>Script</dt>
     <dd><pre>{{.job.Script}}</pre></dd>
+
+    <dt>Teardown</dt>
+    <dd><pre>{{.job.Teardown}}</pre></dd>
 
     <dt>Run on</dt>
     {{if .job.AnyServer}}
@@ -26,17 +41,15 @@
     {{range $h := .history}}
       <dd>
         <a href="#">
-          {{if not $h.EndDate.Valid}}
-            RUNNING on {{$h.Server.Hostname}}
+          {{if eq $h.State 0}}
+            RUNNING
+          {{else if eq $h.State 1}}
+            SUCCESS
           {{else}}
-            {{if $h.Success}}
-              SUCCESS
-            {{else}}
-              FAILED
-            {{end}}
-            on {{$h.Server.Hostname}}
-            at {{$h.StartDate.Format "Jan 02, 2006 3:04 PM"}}
+            FAILED
           {{end}}
+          on {{$h.Server.Hostname}}
+          at {{$h.StartDate.Format "Jan 02, 2006 3:04 PM"}}
         </a>
       </dd>
     {{end}}

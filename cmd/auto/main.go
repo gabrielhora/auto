@@ -44,6 +44,7 @@ func main() {
 
 	router.HandleFunc("/jobs/", handler.JobList(db, tpl)).Methods("GET")
 	router.HandleFunc("/jobs/{id:[0-9]+}/", handler.JobShow(db, tpl)).Methods("GET")
+	router.HandleFunc("/jobs/{id:[0-9]+}/run/", handler.JobRun(db, tpl)).Methods("GET", "POST")
 	router.HandleFunc("/jobs/new/", handler.JobCreate(db, tpl)).Methods("GET", "POST")
 
 	hs := &http.Server{

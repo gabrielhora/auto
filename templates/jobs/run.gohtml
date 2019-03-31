@@ -1,0 +1,14 @@
+{{define "jobs/run"}}
+  {{template "header" $}}
+
+  <h1>{{.job.Name}}</h1>
+
+  <p>Schedule job {{.job.Name}} to run now?</p>
+
+  <form action="" method="post">
+    <button type="submit">Run</button>
+    <a href="/jobs/{{.job.ID}}/">Cancel</a>
+  </form>
+
+  {{template "footer" $}}
+{{end}}
